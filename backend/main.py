@@ -1,17 +1,18 @@
 # main.py
-from typing import TypedDict, Dict, Any
-from langgraph.graph import StateGraph, END
-from langchain_openai import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate
-from langchain_core.messages import HumanMessage, SystemMessage
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from fastapi.responses import StreamingResponse
-import asyncio
 import json
 import logging
+import os  # noqa: F401
+from typing import Any, Dict, TypedDict
+
 from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from langchain.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
+from langgraph.graph import END, StateGraph
+from pydantic import BaseModel
 
 load_dotenv("./.env")
 
@@ -32,7 +33,11 @@ app.add_middleware(
 )
 
 # Initialize the language model
-llm = ChatOpenAI(model_name="gpt-3.5-turbo-0613", streaming=True)
+
+llm = ChatOpenAI(
+    model_name="gpt-4o-mini",
+    streaming=True,
+)
 
 
 # Define the state structure
@@ -48,7 +53,7 @@ async def writer_agent(state: State) -> Dict[str, Any]:
     prompt = ChatPromptTemplate.from_messages(
         [
             SystemMessage(
-                content="You are an email writer. Write an email based on the given instructions."
+                content="You are an email writer. Write an email based on the given instructions. Make sure it is less than 10 words"
             ),
             HumanMessage(content=state["instruction"]),
         ]
@@ -64,7 +69,7 @@ async def editor_agent(state: State) -> Dict[str, Any]:
     prompt = ChatPromptTemplate.from_messages(
         [
             SystemMessage(
-                content="You are an email editor. Review and improve the given email draft. Start in a new line"
+                content="You are an email editor. Review and improve the given email draft. Start in a new line. Make sure it is less than 10 words"
             ),
             HumanMessage(
                 content=f"Please review and improve this email draft:\n\n{state['draft']}"
@@ -80,7 +85,7 @@ async def translator_agent(state: State) -> Dict[str, Any]:
     prompt = ChatPromptTemplate.from_messages(
         [
             SystemMessage(
-                content="You are a professional translator. Translate the given English email into Vietnamese. Start in a new line."
+                content="You are a professional translator. Translate the given English email into Vietnamese. Start in a new line. Make sure it is less than 10 words"
             ),
             HumanMessage(
                 content=f"Please translate this email into Vietnamese:\n\n{state['edited_draft']}"
