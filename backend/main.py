@@ -10,7 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage, SystemMessage
+
+from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
+from langchain_core.messages import human
 from langgraph.graph import END, StateGraph
 from pydantic import BaseModel
 
@@ -50,48 +53,53 @@ class State(TypedDict):
 
 # Define the agents
 def writer_agent(state: State) -> Dict[str, Any]:
+    # prompt = ChatPromptTemplate.from_messages(
     prompt = ChatPromptTemplate.from_messages(
         [
-            SystemMessage(
-                content="You are an email writer. Write an email based on the given instructions. Make sure it is less than 10 words"
+            (
+                "system",
+                "You are an email writer. Write an email based on the given instructions. Make sure it is less than 10 words",
             ),
-            HumanMessage(content=state["instruction"]),
+            ("human", "{instruction}"),
         ]
     )
-    response = llm.invoke(prompt.format_messages(instruction=state["instruction"]))
-    state["draft"] = response.content
+    chain = prompt | llm | StrOutputParser()
+    state["draft"] = chain.invoke(input={"instruction": state["instruction"]})
     return state
 
 
 def editor_agent(state: State) -> Dict[str, Any]:
     prompt = ChatPromptTemplate.from_messages(
         [
-            SystemMessage(
-                content="You are an email editor. Review and improve the given email draft. Start in a new line. Make sure it is less than 10 words"
+            (
+                "system",
+                "You are an email editor. Review and improve the given email draft. Start in a new line. Make sure it is less than 10 words",
             ),
-            HumanMessage(
-                content=f"Please review and improve this email draft:\n\n{state['draft']}"
-            ),
+            ("human", "{draft}"),
         ]
     )
-    response = llm.invoke(prompt.format_messages(draft=state["draft"]))
-    state["edited_draft"] = response.content
+    chain = prompt | llm | StrOutputParser()
+    state["edited_draft"] = chain.invoke({"draft": state["draft"]})
     return state
 
 
 def translator_agent(state: State) -> Dict[str, Any]:
     prompt = ChatPromptTemplate.from_messages(
         [
-            SystemMessage(
-                content="You are a professional translator. Translate the given English email into Vietnamese. Start in a new line. Make sure it is less than 10 words"
+            (
+                "system",
+                "You are a professional translator. Translate the given English email into Vietnamese. Start in a new line. Make sure it is less than 10 words",
             ),
-            HumanMessage(
-                content=f"Please translate this email into Vietnamese:\n\n{state['edited_draft']}"
+            (
+                "human",
+                "{edited_draft}",
             ),
         ]
     )
-    response = llm.invoke(prompt.format_messages(email=state["edited_draft"]))
-    state["vietnamese_translation"] = response.content
+    chain = prompt | llm | StrOutputParser()
+    state["vietnamese_translation"] = chain.invoke(
+        {"edited_draft": state["edited_draft"]}
+    )
     return state
 
 
