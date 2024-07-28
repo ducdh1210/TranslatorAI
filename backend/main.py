@@ -49,7 +49,7 @@ class State(TypedDict):
 
 
 # Define the agents
-async def writer_agent(state: State) -> Dict[str, Any]:
+def writer_agent(state: State) -> Dict[str, Any]:
     prompt = ChatPromptTemplate.from_messages(
         [
             SystemMessage(
@@ -58,14 +58,12 @@ async def writer_agent(state: State) -> Dict[str, Any]:
             HumanMessage(content=state["instruction"]),
         ]
     )
-    response = await llm.ainvoke(
-        prompt.format_messages(instruction=state["instruction"])
-    )
+    response = llm.invoke(prompt.format_messages(instruction=state["instruction"]))
     state["draft"] = response.content
     return state
 
 
-async def editor_agent(state: State) -> Dict[str, Any]:
+def editor_agent(state: State) -> Dict[str, Any]:
     prompt = ChatPromptTemplate.from_messages(
         [
             SystemMessage(
@@ -76,12 +74,12 @@ async def editor_agent(state: State) -> Dict[str, Any]:
             ),
         ]
     )
-    response = await llm.ainvoke(prompt.format_messages(draft=state["draft"]))
+    response = llm.invoke(prompt.format_messages(draft=state["draft"]))
     state["edited_draft"] = response.content
     return state
 
 
-async def translator_agent(state: State) -> Dict[str, Any]:
+def translator_agent(state: State) -> Dict[str, Any]:
     prompt = ChatPromptTemplate.from_messages(
         [
             SystemMessage(
@@ -92,7 +90,7 @@ async def translator_agent(state: State) -> Dict[str, Any]:
             ),
         ]
     )
-    response = await llm.ainvoke(prompt.format_messages(email=state["edited_draft"]))
+    response = llm.invoke(prompt.format_messages(email=state["edited_draft"]))
     state["vietnamese_translation"] = response.content
     return state
 
